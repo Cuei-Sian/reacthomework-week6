@@ -27,7 +27,7 @@ function FrontendLayout() {
           </li>
           <li className="nav-item">
             <Link className="nav-link" to="/login">
-              登入
+              後台登入
             </Link>
           </li>
         </ul>
