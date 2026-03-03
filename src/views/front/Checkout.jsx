@@ -1,17 +1,24 @@
 import axios from 'axios';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { currency } from '../../utils/filter';
 import { useForm } from 'react-hook-form';
 import { RotatingLines } from 'react-loader-spinner';
+import * as bootstrap from 'bootstrap';
+import SingleProduct from './SingleProduct';
+import SingleProductModal from '../../components/SingleProductModal';
+import { emailValidation } from '../../utils/validation';
 
 const API_BASE = import.meta.env.VITE_API_BASE;
 const API_PATH = import.meta.env.VITE_API_PATH;
 
 function Checkout() {
   const [cart, setCart] = useState([]);
+  const [product, setProduct] = useState({});
   const [products, setProducts] = useState([]);
   const [loadingCartId, setLoadingCartId] = useState(null);
   const [loadingProductId, setLoadingProductId] = useState(null);
+  // useRef 建立對 DOM 元素的參照取得
+  const productModalRef = useRef(null);
 
   //製作結帳表單react-form
   const {
@@ -46,6 +53,20 @@ function Checkout() {
       }
     };
     getCart();
+
+    //初始化
+    productModalRef.current = new bootstrap.Modal('#productModal', {
+      keyboard: false,
+    });
+
+    // Modal 關閉時移除焦點
+    document
+      .querySelector('#productModal')
+      .addEventListener('hide.bs.modal', () => {
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+      });
   }, []);
 
   // 加入購物車按鈕的API
@@ -133,6 +154,28 @@ function Checkout() {
     }
   };
 
+  // "查看更多"的按鈕功能API
+  const handleView = async (id) => {
+    setLoadingProductId(id);
+    try {
+      const response = await axios.get(
+        `${API_BASE}/api/${API_PATH}/product/${id}`,
+      );
+      console.log(response.data.product);
+      setProduct(response.data.product);
+    } catch (error) {
+      console.log(error.response);
+    } finally {
+      setLoadingProductId(null);
+    }
+
+    productModalRef.current.show(); //show=顯示
+  };
+
+  const closeModal = () => {
+    productModalRef.current.hide(); // hide=關閉
+  };
+
   return (
     <div className="container">
       {/* 產品列表 */}
@@ -165,9 +208,17 @@ function Checkout() {
               </td>
               <td>
                 <div className="btn-group btn-group-sm">
-                  <button type="button" className="btn btn-outline-secondary">
-                    <i className="fas fa-spinner fa-pulse"></i>
-                    查看更多
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary"
+                    onClick={() => handleView(product.id)}
+                    disabled={loadingProductId === product.id}
+                  >
+                    {loadingProductId === product.id ? (
+                      <RotatingLines color="grey" width={80} height={16} />
+                    ) : (
+                      '查看更多'
+                    )}
                   </button>
                   <button
                     type="button"
@@ -265,13 +316,7 @@ function Checkout() {
               className="form-control"
               placeholder="請輸入 Email"
               defaultValue="test@gamil.com"
-              {...register('email', {
-                required: '請輸入Email',
-                pattern: {
-                  value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
-                  message: 'Email 格式不正確',
-                },
-              })}
+              {...register('email', emailValidation)}
             />
             {errors.email && (
               <p className="text-danger">{errors.email.message}</p>
@@ -367,6 +412,12 @@ function Checkout() {
           </div>
         </form>
       </div>
+      {/*引入單筆商品模組*/}
+      <SingleProductModal
+        product={product}
+        addCart={addCart}
+        closeModal={closeModal}
+      />
     </div>
   );
 }
